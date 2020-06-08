@@ -12,9 +12,9 @@
 // implied. See the License for the specific language governing
 // permissions and limitations under the License.
 use crate::pserver::raft::*;
-#[cfg(not(target_os = "windows"))]
+#[cfg(vector)]
 use crate::pserver::simba::engine::faiss::Faiss;
-#[cfg(target_os = "windows")]
+#[cfg(not(vecotr))]
 use crate::pserver::simba::engine::faiss_empty::Faiss;
 use crate::pserver::simba::engine::{
     engine::{BaseEngine, Engine},
