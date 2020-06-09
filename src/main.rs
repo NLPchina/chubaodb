@@ -18,7 +18,7 @@ use std::sync::{mpsc::channel, Arc};
 use std::thread;
 
 fn main() {
-    let app = App::new("anyindex")
+    let app = App::new("chubaodb")
         .version(clap::crate_version!())
         .about("hello index world")
         .subcommand(

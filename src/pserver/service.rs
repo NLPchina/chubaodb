@@ -336,23 +336,19 @@ impl PartitionService {
     }
 
     async fn init_simba_by_raft(&self, simba: &Arc<Simba>, raft: &Arc<Raft>) -> ASResult<()> {
-        if let Err(e) = raft
-            .store
-            .iter(simba.get_raft_index() + 1, |body| -> RaftResult<bool> {
-                match Entry::decode(&body)? {
-                    Entry::Commit { index, commond, .. } => {
-                        if let Err(e) = simba.do_write(index, &commond, true) {
-                            error!("init raft log has err:{:?} line:{:?}", e, commond);
-                        }
+        let index = simba.get_raft_index() + 1;
+        let mut iter = convert(raft.store.iter(index).await)?;
+
+        while let Some(body) = conver(iter.next(&raft.store).await)? {
+            match conver(Entry::decode(&body))? {
+                Entry::Commit { index, commond, .. } => {
+                    if let Err(e) = simba.do_write(index, &commond, true) {
+                        error!("init raft log has err:{:?} line:{:?}", e, commond);
                     }
-                    _ => panic!("not support"),
                 }
-                Ok(true)
-            })
-            .await
-        {
-            return Err(e.into());
-        };
+                _ => panic!("not support"),
+            }
+        }
         Ok(())
     }
 

@@ -104,6 +104,7 @@ pub enum Code {
     HttpAPIRequestErr,
     EncodingErr,
     DencodingErr,
+    Timeout,
 }
 
 impl Code {
