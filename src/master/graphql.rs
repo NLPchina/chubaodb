@@ -2,8 +2,8 @@ use crate::master::service::MasterService;
 use crate::util::{config, entity::*};
 use async_graphql::*;
 use log::{error, info};
+use serde_json::json;
 use std::sync::Arc;
-
 pub type JsonValue = Json<serde_json::Value>;
 
 pub type MasterSchema = Schema<Query, Mutation, EmptySubscription>;
@@ -96,6 +96,31 @@ impl Mutation {
         }
     }
 
+    async fn collection_delete(&self, ctx: &Context<'_>, name: String) -> FieldResult<JsonValue> {
+        info!("prepare to delete collection name {}", name);
+
+        match ctx.data::<Arc<MasterService>>().del_collection(&name).await {
+            Ok(s) => Ok(Json(json!({
+                "success":true,
+                "collection":s
+            }))),
+            Err(e) => {
+                error!(
+                    "delete collection failed, collection_name {}, err: {}",
+                    name,
+                    e.to_string()
+                );
+                Err(FieldError(
+                    format!(
+                        "delete collection failed, collection_name: {}, err: {}",
+                        name, e
+                    ),
+                    None,
+                ))
+            }
+        }
+    }
+
     async fn pserver_update(&self, ctx: &Context<'_>, data: JsonValue) -> FieldResult<JsonValue> {
         let info: PServer = serde_json::from_value(data.0)?;
         info!(
@@ -131,7 +156,7 @@ impl Query {
         if let Some(collection_id) = id {
             info!("prepare to get collection by name {}", collection_id);
             match ctx
-                .data::<MasterService>()
+                .data::<Arc<MasterService>>()
                 .get_collection_by_id(collection_id as u32)
             {
                 Ok(s) => return Ok(Json(serde_json::to_value(s)?)),
@@ -210,7 +235,7 @@ impl Query {
         );
 
         match ctx
-            .data::<MasterService>()
+            .data::<Arc<MasterService>>()
             .get_partition(collection_id as u32, partition_id as u32)
         {
             Ok(s) => return Ok(Json(serde_json::to_value(s)?)),
@@ -237,7 +262,7 @@ impl Query {
         );
 
         match ctx
-            .data::<MasterService>()
+            .data::<Arc<MasterService>>()
             .list_partitions(&collection_name)
         {
             Ok(s) => return Ok(Json(serde_json::to_value(s)?)),

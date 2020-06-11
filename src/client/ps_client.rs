@@ -183,10 +183,6 @@ impl PsClient {
                         task::spawn(async move {
                             match mp.search(query, def_fields, vq, size).await {
                                 Ok(resp) => {
-                                    println!(
-                                        "..........................................{:?}",
-                                        resp
-                                    );
                                     if let Err(e) = tx.send(resp).await {
                                         error!("send result has err:{:?}", e); //TODO: if errr
                                     };
