@@ -111,7 +111,7 @@ impl Tantivy {
             fs::create_dir_all(&index_dir)?;
         }
 
-        let index = convert(Index::open_or_create::<MmapDirectory>(
+        let index = conver(Index::open_or_create::<MmapDirectory>(
             MmapDirectory::open(index_dir.to_str().unwrap())?,
             schema,
         ))?;
@@ -182,8 +182,8 @@ impl Tantivy {
                 .map(|s| self.index.schema().get_field(s).unwrap())
                 .collect(),
         );
-        let q = convert(query_parser.parse_query(sdr.query.as_str()))?;
-        let result = convert(searcher.search(&q, &bitmap_collector::Bitmap))?;
+        let q = conver(query_parser.parse_query(sdr.query.as_str()))?;
+        let result = conver(searcher.search(&q, &bitmap_collector::Bitmap))?;
         let len = result.len();
         Ok((Some(result), len))
     }
@@ -199,14 +199,14 @@ impl Tantivy {
                 .collect(),
         );
         let size = sdr.size as usize;
-        let q = convert(query_parser.parse_query(sdr.query.as_str()))?;
+        let q = conver(query_parser.parse_query(sdr.query.as_str()))?;
 
         let mut collectors = MultiCollector::new();
         let top_docs_handle = collectors.add_collector(TopDocs::with_limit(size));
         let count_handle = collectors.add_collector(Count);
 
         let search_start = SystemTime::now();
-        let mut multi_fruit = convert(searcher.search(&q, &collectors))?;
+        let mut multi_fruit = conver(searcher.search(&q, &collectors))?;
 
         let count = count_handle.extract(&mut multi_fruit);
         let top_docs = top_docs_handle.extract(&mut multi_fruit);
@@ -250,7 +250,7 @@ impl Tantivy {
             IndexRecordOption::Basic,
         );
         let td = TopDocs::with_limit(1);
-        let result = convert(searcher.search(&query, &td))?;
+        let result = conver(searcher.search(&query, &td))?;
         return Ok(result.len() > 0);
     }
 
@@ -312,7 +312,7 @@ impl Tantivy {
     }
 
     pub fn write(&self, event: Event) -> ASResult<()> {
-        convert(self.tx.lock().unwrap().send(event))
+        conver(self.tx.lock().unwrap().send(event))
     }
 
     fn _delete(&self, iid: u32) -> ASResult<()> {
@@ -415,7 +415,7 @@ impl Engine for Tantivy {
         if self.status.fetch_add(1, SeqCst) > 10 {
             return Ok(());
         }
-        convert(self.index_writer.write().unwrap().commit())?;
+        conver(self.index_writer.write().unwrap().commit())?;
         Ok(())
     }
 

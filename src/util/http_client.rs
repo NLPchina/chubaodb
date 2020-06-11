@@ -22,13 +22,13 @@ pub async fn get_json<V: serde::de::DeserializeOwned>(url: &str, m_timeout: u64)
 
     let mut resp = match future::timeout(Duration::from_millis(m_timeout), surf::get(url)).await {
         Err(e) => return result!(Code::Timeout, e.to_string()),
-        Ok(resp) => convert(resp)?,
+        Ok(resp) => conver(resp)?,
     };
 
     let http_code = resp.status().as_u16();
     if http_code != 200 {
         //try genererr
-        let text = convert(resp.body_string().await)?;
+        let text = conver(resp.body_string().await)?;
         if let Ok(value) = serde_json::from_str::<serde_json::Value>(text.as_str()) {
             if let Some(code) = value.get("code") {
                 if let Some(message) = value.get("message") {
@@ -57,13 +57,13 @@ where
     .await
     {
         Err(e) => return result!(Code::Timeout, e.to_string()),
-        Ok(resp) => convert(resp)?,
+        Ok(resp) => conver(resp)?,
     };
 
     let http_code = resp.status().as_u16();
     if http_code != 200 {
         //try genererr
-        let text = convert(resp.body_string().await)?;
+        let text = conver(resp.body_string().await)?;
         if let Ok(value) = serde_json::from_str::<serde_json::Value>(text.as_str()) {
             if let Some(code) = value.get("code") {
                 if let Some(message) = value.get("message") {
@@ -74,7 +74,7 @@ where
         return result!(http_code as i32, text);
     }
 
-    Ok(convert(resp.body_json::<V>().await)?)
+    Ok(conver(resp.body_json::<V>().await)?)
 }
 
 // fn client_tout(timeout: u64) -> reqwest::Client {

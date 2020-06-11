@@ -17,10 +17,10 @@ use crate::pserverpb::rpc_client::RpcClient;
 use crate::pserverpb::*;
 use crate::util::{coding, config, entity::*, error::*};
 use crate::*;
-use async_std::{sync::channel, task};
 use log::{error, info, warn};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
+use tokio::{sync::mpsc, task};
 use tonic::transport::{Channel, Endpoint};
 
 const RETRY: usize = 5;
@@ -171,19 +171,23 @@ impl PsClient {
         size: u32,
     ) -> ASResult<SearchDocumentResponse> {
         'outer: for i in 0..RETRY {
-            let (tx, rx) = channel::<SearchDocumentResponse>(10);
+            let (tx, mut rx) = mpsc::channel::<SearchDocumentResponse>(10);
 
             match self.select_collection(collection_name).await {
                 Ok(mpl) => {
                     for mp in mpl {
-                        let tx = tx.clone();
+                        let mut tx = tx.clone();
                         let query = query.clone();
                         let def_fields = def_fields.clone();
                         let vq = vector_query.clone();
                         task::spawn(async move {
                             match mp.search(query, def_fields, vq, size).await {
                                 Ok(resp) => {
-                                    if let Err(e) = tx.try_send(resp) {
+                                    println!(
+                                        "..........................................{:?}",
+                                        resp
+                                    );
+                                    if let Err(e) = tx.send(resp).await {
                                         error!("send result has err:{:?}", e); //TODO: if errr
                                     };
                                 }
@@ -205,7 +209,7 @@ impl PsClient {
                 }
             };
 
-            // drop(tx);
+            drop(tx);
 
             let mut dist = rx.recv().await.unwrap();
 
@@ -218,8 +222,7 @@ impl PsClient {
             {
                 continue 'outer;
             }
-
-            while let Ok(src) = rx.recv().await {
+            while let Some(src) = rx.recv().await {
                 if Code::from_i32(src.code) != Code::Success
                     && self.check_response_cache(
                         i,
@@ -239,16 +242,16 @@ impl PsClient {
 
     pub async fn count(&self, collection_name: &str) -> ASResult<CountDocumentResponse> {
         'outer: for i in 0..RETRY {
-            let (tx, rx) = channel::<CountDocumentResponse>(10);
+            let (tx, mut rx) = mpsc::channel::<CountDocumentResponse>(10);
 
             match self.select_collection(collection_name).await {
                 Ok(mpl) => {
                     for mp in mpl {
-                        let tx = tx.clone();
+                        let mut tx = tx.clone();
                         task::spawn(async move {
                             match mp.count().await {
                                 Ok(resp) => {
-                                    if let Err(e) = tx.try_send(resp) {
+                                    if let Err(e) = tx.send(resp).await {
                                         error!("send result has err:{:?}", e); //TODO: if errr
                                     };
                                 }
@@ -270,6 +273,8 @@ impl PsClient {
                 }
             };
 
+            drop(tx);
+
             let mut dist = rx.recv().await.unwrap();
 
             if Code::from_i32(dist.code) != Code::Success
@@ -278,7 +283,7 @@ impl PsClient {
                 continue 'outer;
             }
 
-            while let Ok(src) = rx.recv().await {
+            while let Some(src) = rx.recv().await {
                 if Code::from_i32(src.code) != Code::Success
                     && self.check_response_cache(i, collection_name, err!(dist.code, dist.message))
                 {

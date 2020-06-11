@@ -504,6 +504,10 @@ impl Simba {
         let id = self.max_iid.fetch_add(1, SeqCst);
         return id + 1;
     }
+
+    pub fn arc_count(&self){
+        self.rocksdb.arc_count.fetch_add(1, SeqCst);
+    }
 }
 
 fn merge(a: &mut Value, b: Value) {
@@ -526,3 +530,4 @@ fn merge_doc(new: &mut Document, old: Document) -> ASResult<()> {
     new.version = old.version;
     Ok(())
 }
+

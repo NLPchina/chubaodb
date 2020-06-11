@@ -44,7 +44,7 @@ impl PartitionClient {
         mut rpc_client: RpcClient<Channel>,
         req: WriteDocumentRequest,
     ) -> ASResult<GeneralResponse> {
-        let resp = convert(rpc_client.write(Request::new(req)).await)?.into_inner();
+        let resp = conver(rpc_client.write(Request::new(req)).await)?.into_inner();
         result_obj_code!(resp)
     }
 
@@ -53,7 +53,7 @@ impl PartitionClient {
         mut rpc_client: RpcClient<Channel>,
         req: GetDocumentRequest,
     ) -> ASResult<DocumentResponse> {
-        let resp = convert(rpc_client.get(Request::new(req)).await)?.into_inner();
+        let resp = conver(rpc_client.get(Request::new(req)).await)?.into_inner();
         result_obj_code!(resp)
     }
 }

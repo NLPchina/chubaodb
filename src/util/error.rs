@@ -74,7 +74,7 @@ macro_rules! result_obj_code {
     }};
 }
 
-pub fn convert<T, E: std::fmt::Display>(result: Result<T, E>) -> ASResult<T> {
+pub fn conver<T, E: std::fmt::Display>(result: Result<T, E>) -> ASResult<T> {
     match result {
         Ok(t) => Ok(t),
         Err(e) => Err(ASError::Error(Code::InternalErr, format!("{}", e))),
@@ -138,6 +138,13 @@ impl ASError {
         match self {
             ASError::Success => Code::Success,
             ASError::Error(c, _) => *c,
+        }
+    }
+
+    pub fn message(&self) -> String {
+        match self {
+            ASError::Success => String::from("success"),
+            ASError::Error(_, s) => s.clone(),
         }
     }
 
