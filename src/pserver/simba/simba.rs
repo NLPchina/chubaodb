@@ -349,17 +349,8 @@ impl Simba {
         match raft.submit(event.encode()).await {
             Ok(()) => Ok(()),
             Err(e) => match e {
-                RaftError::ErrCode(c, m) => {
-                    println!(
-                        "111======================================{}",
-                        ASError::Error(Code::from_i32(c), m.clone())
-                    );
-                    Err(ASError::Error(Code::from_i32(c), m))
-                }
-                _ => {
-                    println!("======================================{}", e);
-                    Err(ASError::from(e))
-                }
+                RaftError::ErrCode(c, m) => Err(ASError::Error(Code::from_i32(c), m)),
+                _ => Err(ASError::from(e)),
             },
         }
     }
@@ -505,7 +496,7 @@ impl Simba {
         return id + 1;
     }
 
-    pub fn arc_count(&self){
+    pub fn arc_count(&self) {
         self.rocksdb.arc_count.fetch_add(1, SeqCst);
     }
 }
@@ -530,4 +521,3 @@ fn merge_doc(new: &mut Document, old: Document) -> ASResult<()> {
     new.version = old.version;
     Ok(())
 }
-
