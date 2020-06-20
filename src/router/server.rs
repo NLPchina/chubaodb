@@ -1,3 +1,12 @@
+use std::sync::{mpsc::Sender, Arc};
+
+use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer};
+use log::{error, info};
+use prost::Message;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+
+use crate::*;
 // Copyright 2020 The Chubao Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +23,6 @@
 use crate::pserverpb::*;
 use crate::router::service::RouterService;
 use crate::util::{config, error::*};
-use crate::*;
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer};
-use log::{error, info};
-use prost::Message;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::sync::{mpsc::Sender, Arc};
 
 #[actix_rt::main]
 pub async fn start(tx: Sender<String>, conf: Arc<config::Config>) -> std::io::Result<()> {
@@ -211,20 +213,6 @@ async fn get(
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-struct TempVectorQuery {
-    pub field: Option<String>,
-    pub vector: Vec<f32>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-struct Query {
-    pub query: Option<String>,
-    pub def_fields: Option<String>,
-    pub vector_query: Option<TempVectorQuery>,
-    pub size: Option<u32>,
-}
-
 async fn count(rs: web::Data<Arc<RouterService>>, req: HttpRequest) -> HttpResponse {
     let collection_name: String = req
         .match_info()
@@ -241,6 +229,21 @@ async fn count(rs: web::Data<Arc<RouterService>>, req: HttpRequest) -> HttpRespo
             .content_type("application/json")
             .body(e.to_json()),
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct TempVectorQuery {
+    pub field: Option<String>,
+    pub vector: Vec<f32>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct Query {
+    pub query: Option<String>,
+    pub def_fields: Option<String>,
+    pub vector_query: Option<TempVectorQuery>,
+    pub size: Option<u32>,
+    pub sort: Option<String>, //name:asc|age:desc
 }
 
 async fn search_by_post(
@@ -264,7 +267,12 @@ async fn search_by_post(
         }
     };
 
-    return _search(rs, names, query).await;
+    match _search(rs, names, query).await {
+        Ok(s) => HttpResponse::build(Code::Success.http_code()).json(search_to_json(s)),
+        Err(e) => HttpResponse::build(e.code().http_code())
+            .content_type("application/json")
+            .body(e.to_json()),
+    }
 }
 
 async fn search_by_get(
@@ -281,15 +289,60 @@ async fn search_by_get(
 
     let query = query.into_inner();
 
-    return _search(rs, names, query).await;
+    match _search(rs, names, query).await {
+        Ok(s) => HttpResponse::build(Code::Success.http_code()).json(search_to_json(s)),
+        Err(e) => HttpResponse::build(e.code().http_code())
+            .content_type("application/json")
+            .body(e.to_json()),
+    }
 }
 
-async fn _search(rs: web::Data<Arc<RouterService>>, names: String, query: Query) -> HttpResponse {
+async fn _search(
+    rs: web::Data<Arc<RouterService>>,
+    names: String,
+    query: Query,
+) -> ASResult<SearchDocumentResponse> {
     let mut collection_names = Vec::new();
 
     for n in names.split(",") {
         collection_names.push(n.to_string());
     }
+
+    let sort = if let Some(sort) = query.sort {
+        sort.split("|")
+            .map(|s| s.split(":").collect::<Vec<&str>>())
+            .map(|s| {
+                if s.len() != 2 {
+                    return result!(
+                        Code::ParamError,
+                        "sort param:[{:?}] has format has err, example:[name:asc]",
+                        s
+                    );
+                }
+
+                let name = s[0].to_owned();
+                let order = s[1].to_lowercase();
+
+                match order.as_str() {
+                    "asc" | "desc" => {}
+                    _ => {
+                        return result!(
+                            Code::ParamError,
+                            "sort param name:{} order:{} only support asc or desc",
+                            name,
+                            order
+                        )
+                    }
+                }
+                Ok(Order {
+                    name: name,
+                    order: order,
+                })
+            })
+            .collect()
+    } else {
+        Ok(vec![])
+    }?;
 
     let mut def_fields = Vec::new();
 
@@ -307,9 +360,7 @@ async fn _search(rs: web::Data<Arc<RouterService>>, names: String, query: Query)
             field: match tvq.field {
                 Some(field) => field,
                 None => {
-                    return HttpResponse::build(Code::ParamError.http_code())
-                        .content_type("application/json")
-                        .body(err!(Code::ParamError, "vector query not sett field").to_json());
+                    return result!(Code::ParamError, "vector query not set field");
                 }
             },
             vector: tvq.vector,
@@ -317,21 +368,15 @@ async fn _search(rs: web::Data<Arc<RouterService>>, names: String, query: Query)
         None => None,
     };
 
-    match rs
-        .search(
-            collection_names,
-            def_fields,
-            query.query.unwrap_or(String::from("*")),
-            vq,
-            query.size.unwrap_or(20),
-        )
-        .await
-    {
-        Ok(s) => HttpResponse::build(Code::Success.http_code()).json(search_to_json(s)),
-        Err(e) => HttpResponse::build(e.code().http_code())
-            .content_type("application/json")
-            .body(e.to_json()),
-    }
+    rs.search(
+        collection_names,
+        def_fields,
+        query.query.unwrap_or(String::from("*")),
+        vq,
+        query.size.unwrap_or(20),
+        sort,
+    )
+    .await
 }
 
 fn search_to_json(sdr: SearchDocumentResponse) -> serde_json::value::Value {

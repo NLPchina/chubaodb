@@ -103,24 +103,10 @@ impl MultiplePartitionClient {
         }
     }
 
-    pub async fn search(
-        self,
-        query: String,
-        def_fields: Vec<String>,
-        vector_query: Option<VectorQuery>,
-        size: u32,
-    ) -> ASResult<SearchDocumentResponse> {
+    pub async fn search(self, query: SearchDocumentRequest) -> ASResult<SearchDocumentResponse> {
         let mut rpc_client = RpcClient::new(Endpoint::from_shared(self.addr())?.connect().await?);
 
-        let resp = rpc_client
-            .search(Request::new(SearchDocumentRequest {
-                cpids: self.collection_partition_ids,
-                query: query,
-                def_fields: def_fields,
-                vector_query: vector_query,
-                size: size,
-            }))
-            .await?;
+        let resp = rpc_client.search(Request::new(query)).await?;
 
         Ok(resp.into_inner())
     }

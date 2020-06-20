@@ -165,10 +165,7 @@ impl PsClient {
     pub async fn search(
         &self,
         collection_name: &str,
-        query: String,
-        def_fields: Vec<String>,
-        vector_query: Option<VectorQuery>,
-        size: u32,
+        query: SearchDocumentRequest,
     ) -> ASResult<SearchDocumentResponse> {
         'outer: for i in 0..RETRY {
             let (tx, mut rx) = mpsc::channel::<SearchDocumentResponse>(10);
@@ -176,19 +173,18 @@ impl PsClient {
             match self.select_collection(collection_name).await {
                 Ok(mpl) => {
                     for mp in mpl {
+                        let mut query = query.clone();
+                        query.cpids = mp.collection_partition_ids.clone();
                         let mut tx = tx.clone();
-                        let query = query.clone();
-                        let def_fields = def_fields.clone();
-                        let vq = vector_query.clone();
                         task::spawn(async move {
-                            match mp.search(query, def_fields, vq, size).await {
+                            match mp.search(query).await {
                                 Ok(resp) => {
                                     if let Err(e) = tx.send(resp).await {
                                         error!("send result has err:{:?}", e); //TODO: if errr
                                     };
                                 }
                                 Err(e) => {
-                                    if let Err(e) = tx.try_send(e.into()) {
+                                    if let Err(e) = tx.send(e.into()).await {
                                         error!("send result has err:{:?}", e); //TODO: if errr
                                     };
                                 }

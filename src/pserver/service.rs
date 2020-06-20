@@ -467,8 +467,6 @@ impl PartitionService {
     }
 
     pub async fn search(&self, sdreq: SearchDocumentRequest) -> ASResult<SearchDocumentResponse> {
-        assert_ne!(sdreq.cpids.len(), 0);
-
         let len = sdreq.cpids.len();
 
         let (tx, rx) = channel(len);

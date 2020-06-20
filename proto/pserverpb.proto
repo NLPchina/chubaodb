@@ -47,12 +47,18 @@ message VectorCount {
   uint64 count = 2;
 }
 
+message Order{
+  string name = 1;
+  string order = 2;
+}
+
 message SearchDocumentRequest {
   repeated uint64 cpids = 1;
   string query = 2;
   repeated string def_fields = 3;
   VectorQuery vector_query = 4;
   uint32 size = 5;
+  repeated Order sort =6;
 }
 
 message VectorQuery {

@@ -57,14 +57,19 @@ impl RouterService {
         query: String,
         vector_query: Option<VectorQuery>,
         size: u32,
+        sort: Vec<Order>,
     ) -> ASResult<SearchDocumentResponse> {
         self.ps_client
             .search(
                 collection_names[0].as_str(),
-                query,
-                def_fields,
-                vector_query,
-                size,
+                SearchDocumentRequest {
+                    cpids: vec![],
+                    query: query,
+                    def_fields: def_fields,
+                    vector_query: vector_query,
+                    size: size,
+                    sort: sort,
+                },
             )
             .await
     }
