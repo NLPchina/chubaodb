@@ -72,7 +72,7 @@ pub struct TextField {
 }
 
 #[Enum(desc = "computer method default is L2")]
-#[derive(Serialize, Deserialize, Clone, Debug, Copy)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum MetricType {
     L2 = 1,
     InnerProduct = 2,

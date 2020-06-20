@@ -305,7 +305,11 @@ async fn _search(
     let mut collection_names = Vec::new();
 
     for n in names.split(",") {
-        collection_names.push(n.to_string());
+        let name = n.to_string();
+        if name.len() == 0 {
+            continue;
+        }
+        collection_names.push(name);
     }
 
     let sort = if let Some(sort) = query.sort {
