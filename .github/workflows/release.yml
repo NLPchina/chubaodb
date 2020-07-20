@@ -1,5 +1,3 @@
-
-
 on:
   push:
     tags:
@@ -23,11 +21,10 @@ jobs:
         if: matrix.os == 'macOS-latest'
         run: rustup component add rustfmt --toolchain stable-x86_64-apple-darwin
 
-      
       - name: Build project
         run: |
           cargo build --release
-          
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -38,8 +35,7 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-      
-	  
+
       - name: Upload Release Asset For Mac
         if: matrix.os == 'macOS-latest'
         id: upload-release-asset-mac
@@ -51,7 +47,7 @@ jobs:
           asset_path: ./target/release/chubaodb
           asset_name: chubaodb_mac
           asset_content_type: application/zip
-      
+
       - name: Upload Release Asset For Linux
         if: matrix.os == 'ubuntu-latest'
         id: upload-release-asset-linux
