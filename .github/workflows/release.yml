@@ -15,9 +15,16 @@ jobs:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build project # This would actually build your project, using zip for an example artifact
+
+      - name: MacOs before install
+        if: matrix.os == 'macOS-latest'
+        run: rustup component add rustfmt --toolchain stable-x86_64-apple-darwin
+
+      
+      - name: Build project
         run: |
           cargo build --release
       - name: Create Release
@@ -31,10 +38,7 @@ jobs:
           draft: false
           prerelease: false
       
-	  - name: Build(Mac)
-        if: matrix.os == 'macOS-latest'
-        run: |
-          rustup component add rustfmt --toolchain stable-x86_64-apple-darwin
+	  
       - name: Upload Release Asset For Mac
         if: matrix.os == 'macOS-latest'
         id: upload-release-asset-mac
